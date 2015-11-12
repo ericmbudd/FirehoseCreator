@@ -1,6 +1,6 @@
 #!/usr/bin/python2.4
 
-'''Post a message to twitter'''
+'''Programatically create lists or follow accounts'''
 
 __author__ = 'ericbudd@gmail.com'
 
@@ -14,7 +14,7 @@ import inputapi
 
 USAGE = '''Usage: tweet [options] message
 
-  This script posts a message to Twitter.
+  Programatically create lists or follow accounts.
 
   Options:
 
@@ -112,54 +112,40 @@ def rateLimitChecks(api):
 
 
 def createNewList(api):
+  #gives the user the option to create a new list before adding members to list
   global tempListNoDupes, listoflists
 
-  createList = input('Create list? (y/n) = ')
+  createList = input('Create new list? (y/n) = ')
 
   if createList == 'y':
     newListName = input('List name? = ')
-    api.create_list(name=newListName)
+    api.create_list(name=newListName,
+                    mode="private")
 
     listoflists = api.lists_all (
                      screen_name='ericmbudd',
                      user_id=None,
                      reverse=False)
 
+
     for b, i in enumerate(listoflists):
       intb = int(b)
       print(b + 1, listoflists[b].name + ' ' + str(listoflists[b].member_count))
 
-    #print(tempList)
 
-    listIncrement = 20
-    listRangeStart = 0
-    listRangeEnd = 0
-
-
-    while listRangeEnd < len(tempListNoDupes):
-      if listRangeEnd + listIncrement >= len(tempListNoDupes):
-        listRangeEnd = len(tempListNoDupes)
-      else:
-        listRangeEnd += listIncrement
-
-      print(str(listRangeStart) + " " + str(listRangeEnd))
-
-      members = api.add_list_members(
-        list_id=listoflists[0].id,
-        user_id=tempListNoDupes[listRangeStart:listRangeEnd]
-        )
-
-      listRangeStart += listIncrement
 
 
 
 def getListsInfo(api):
+  #display list of lists for a user
+
   global whichLists, listoflists
   listoflists = api.lists_all (
                    screen_name='ericmbudd',
                    user_id=None,
                    reverse=False)
 
+  #following is separate from lists and handled differently
   print("0 Following " + str(listoflists[0].user.friends_count))
 
 #  print (listoflists)
@@ -190,9 +176,12 @@ def getListsInfo(api):
   print('')
   print('totalListMembers before = ' + str(totalListMembers))
 
+
 def processListMembers(api):
   global tempList, listoflists, tempListNoDupes
 
+
+  #cycle through list of lists (as selected by user)
   for i in whichLists:
     inti = int(i)
     if inti == 0:
@@ -201,6 +190,7 @@ def processListMembers(api):
         cursor=-1)
     #    count=5)
 
+      #cycle through members of each list
       for a in members:
         for b in a:
           if b == 0:
@@ -215,6 +205,7 @@ def processListMembers(api):
             continue
 
     else:
+      #default -1; 0 = list done
       cursorTracker = -1
       while cursorTracker != 0:
         members = api.list_members(
@@ -251,11 +242,53 @@ def processListMembers(api):
 
 #    print members
 
+  #used for all final list/follow processing
   tempListNoDupes = list(set(tempList))
 
   print('totalListMembers after    = ' + str(len(tempList)))
   print('totalListMembers after ND = ' + str(len(tempListNoDupes)))
 
+
+def followAccountsOrPopulateList(api):
+  global tempListNoDupes, listoflists
+
+  addAccountsToList = input('Add Accounts To List? (y/n) = ')
+  followAccounts = input('Follow Accounts? (y/n) = ')
+
+
+  #print(tempList)
+
+
+  if addAccountsToList == 'y':
+    #add members to lists in increments to prevent API squashing
+    listIncrement = 20
+    listRangeStart = 0
+    listRangeEnd = 0
+
+    #process list in increments
+    while listRangeEnd < len(tempListNoDupes):
+        if listRangeEnd + listIncrement >= len(tempListNoDupes):
+          listRangeEnd = len(tempListNoDupes)
+        else:
+          listRangeEnd += listIncrement
+
+        print(str(listRangeStart) + " " + str(listRangeEnd))
+
+        #twitter API requires list ID and user ID to add to lists
+        members = api.add_list_members(
+          list_id=listoflists[0].id,
+          user_id=tempListNoDupes[listRangeStart:listRangeEnd]
+          )
+
+        #update list tracker
+        listRangeStart += listIncrement
+
+  if followAccounts == 'y':
+    # add twitter follower
+    for a in tempListNoDupes:
+         members = api.create_friendship(
+          user_id=a
+          )
 
 
 def main():
@@ -320,8 +353,11 @@ def main():
 
   rateLimitChecks(api)
   getListsInfo(api)
-  processListMembers(api)
   createNewList(api)
+  processListMembers(api)
+  followAccountsOrPopulateList(api)
+
+
 
 ####
 
